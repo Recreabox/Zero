@@ -4,10 +4,12 @@ services:
       context: .
       dockerfile: docker/app/Dockerfile
     environment:
-      NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL:-http://cf-worker.example}
-      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      SERVICE_FQDN_ZERO_3000: mail-zero.recreabox.com
+      SERVICE_URL_ZERO_3000: 'https://mail-zero.recreabox.com'
+      NEXT_PUBLIC_BACKEND_URL: 'https://api-mail-zero.recreabox.com'
+      NEXT_PUBLIC_APP_URL: 'https://mail-zero.recreabox.com'
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-zerodotemail}
-      REDIS_URL: ${REDIS_URL}
+      REDIS_URL: 'http://upstash-proxy'
       REDIS_TOKEN: ${REDIS_TOKEN:-upstash-local-token}
       RESEND_API_KEY: ${RESEND_API_KEY}
       AI_SYSTEM_PROMPT: ${AI_SYSTEM_PROMPT}
@@ -21,6 +23,11 @@ services:
       NEXT_PUBLIC_POSTHOG_KEY: ${NEXT_PUBLIC_POSTHOG_KEY}
       NEXT_PUBLIC_POSTHOG_HOST: ${NEXT_PUBLIC_POSTHOG_HOST}
       NEXT_PUBLIC_IMAGE_API_URL: ${NEXT_PUBLIC_IMAGE_API_URL}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: 'https://mail-zero.recreabox.com'
+      COOKIE_DOMAIN: mail-zero.recreabox.com
+      AUTUMN_SECRET_KEY: ${AUTUMN_SECRET_KEY}
+      NODE_ENV: production
     depends_on:
       db:
         condition: service_healthy
@@ -38,6 +45,41 @@ services:
       start_period: 10s
     ports:
       - 3000:3000
+
+  zero-server:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    user: '0:0'
+    environment:
+      SERVICE_FQDN_ZERO_SERVER_8787: api-mail-zero.recreabox.com
+      SERVICE_URL_ZERO_SERVER_8787: 'https://api-mail-zero.recreabox.com'
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-zerodotemail}
+      REDIS_URL: 'http://upstash-proxy'
+      REDIS_TOKEN: ${REDIS_TOKEN:-upstash-local-token}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: 'https://mail-zero.recreabox.com'
+      COOKIE_DOMAIN: mail-zero.recreabox.com
+      NEXT_PUBLIC_APP_URL: 'https://mail-zero.recreabox.com'
+      NEXT_PUBLIC_BACKEND_URL: 'https://api-mail-zero.recreabox.com'
+      AUTUMN_SECRET_KEY: ${AUTUMN_SECRET_KEY}
+      DISABLE_CALLS: 'true'
+      NODE_ENV: production
+    command:
+      - sh
+      - '-c'
+      - "sed -i 's|@localhost:5432|@db:5432|g' /app/apps/server/wrangler.jsonc && sed -i 's|http://localhost:3000|https://mail-zero.recreabox.com|g' /app/apps/server/wrangler.jsonc && sed -i 's|http://localhost:8787|https://api-mail-zero.recreabox.com|g' /app/apps/server/wrangler.jsonc && cd /app/apps/server && wrangler dev --env local --port 8787 --host 0.0.0.0 --ip 0.0.0.0 --show-interactive-dev-session=false"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+      upstash-proxy:
+        condition: service_healthy
+    ports:
+      - 8787:8787
 
   migrations:
     build:
@@ -68,14 +110,13 @@ services:
       retries: 5
 
   valkey:
-    image: docker.io/bitnami/valkey:8.0
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
-      - VALKEY_DISABLE_COMMANDS=FLUSHDB,FLUSHALL
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    command: valkey-server --save 60 1 --loglevel warning
     volumes:
-      - valkey-data:/bitnami/valkey/data
+      - valkey-data:/data
     healthcheck:
-      test: ['CMD', 'redis-cli', '-h', 'localhost', '-p', '6379', 'ping']
+      test: ['CMD', 'valkey-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
