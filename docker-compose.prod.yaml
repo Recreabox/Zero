@@ -60,6 +60,13 @@ services:
       - traefik.http.routers.mail-zero.tls.certresolver=letsencrypt
       - traefik.http.routers.mail-zero.service=mail-zero
       - traefik.http.services.mail-zero.loadbalancer.server.port=3000
+      - traefik.http.routers.mail-zero.priority=100
+      - traefik.http.routers.https-0-f08skcc0cwgc0s00kccoo0ow-zero.service=mail-zero
+      - traefik.http.routers.http-0-f08skcc0cwgc0s00kccoo0ow-zero.service=mail-zero
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 
   zero-server:
     build:
@@ -83,7 +90,11 @@ services:
     command:
       - sh
       - '-c'
-      - "sed -i 's|@localhost:5432|@db:5432|g' /app/apps/server/wrangler.jsonc && sed -i 's|http://localhost:3000|https://mail-zero.recreabox.com|g' /app/apps/server/wrangler.jsonc && sed -i 's|http://localhost:8787|https://api-mail-zero.recreabox.com|g' /app/apps/server/wrangler.jsonc && cd /app/apps/server && wrangler dev --env local --port 8787 --host 0.0.0.0 --ip 0.0.0.0 --show-interactive-dev-session=false"
+      - "ulimit -n 65536 2>/dev/null || true && sed -i 's|@localhost:5432|@db:5432|g' /app/apps/server/wrangler.jsonc && sed -i 's|http://localhost:3000|https://mail-zero.recreabox.com|g' /app/apps/server/wrangler.jsonc && sed -i 's|http://localhost:8787|https://api-mail-zero.recreabox.com|g' /app/apps/server/wrangler.jsonc && cd /app/apps/server && exec wrangler dev --env local --port 8787 --host 0.0.0.0 --ip 0.0.0.0 --show-interactive-dev-session=false"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     depends_on:
       db:
         condition: service_healthy

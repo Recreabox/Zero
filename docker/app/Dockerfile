@@ -1,16 +1,18 @@
 # ========================================
-# Base Stage: Alpine Linux with Bun
+# Base Stage: Debian slim (glibc) for workerd/wrangler
 # ========================================
-FROM node:22-alpine AS base
+FROM node:22-bookworm-slim AS base
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends wget ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 # ========================================
 # Dependencies Stage: Install Dependencies
 # ========================================
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install turbo globally
 RUN npm install -g pnpm
 RUN pnpm install -g turbo
 
@@ -21,30 +23,25 @@ COPY packages/ ./packages/
 
 RUN pnpm install --prod --ignore-scripts
 
-
 # ========================================
 # Builder Stage: Build the Application
 # ========================================
 FROM base AS builder
 WORKDIR /app
 
-RUN npm install -g pnpm wrangler
+RUN npm install -g pnpm wrangler @cloudflare/workerd-linux-64
 
-# Copy workspace configuration and source code
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY . .
 
 ENV CI=true
 
-# Install all dependencies (including devDependencies for build)
 RUN pnpm install --frozen-lockfile
 
-# Set environment variables for build
 ENV NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production \
     DOCKER_BUILD=true
 
-# Build the application
 RUN cd apps/mail && pnpm run build
 
 # ========================================
@@ -53,29 +50,24 @@ RUN cd apps/mail && pnpm run build
 FROM base AS runner
 WORKDIR /app
 
-RUN npm install -g wrangler
+RUN npm install -g wrangler @cloudflare/workerd-linux-64
 
-RUN addgroup -S -g 1001 pnpm && \
-    adduser -S -u 1001 nextjs -G pnpm
+RUN groupadd -g 1001 pnpm \
+  && useradd -u 1001 -g pnpm -m nextjs
 
-# Set environment variables for build
 ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME="0.0.0.0" \
-    NEXT_TELEMETRY_DISABLED=1
+    NEXT_TELEMETRY_DISABLED=1 \
+    WRANGLER_SEND_METRICS=false
 
-# Copy entrypoint and run it
 COPY scripts/docker/ /app/scripts
 RUN chmod -R +x /app/scripts/*
 
-# Copy the entire built application
 COPY --from=builder --chown=nextjs:pnpm /app ./
 
-# Switch to non-root user
 USER nextjs
 
-# Set server port and host
 EXPOSE 3000
 
-# Start the server
 CMD ["/app/scripts/entrypoint.sh"]

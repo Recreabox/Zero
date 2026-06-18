@@ -1,10 +1,22 @@
 #!/bin/sh
-set -x
+set -e
 
-# Replacing placeholder urls to runtime variables, since we're using rewrites in nextjs, this is required.
-# Everything else which doesn't compile URLs at build should already be able to use runtime variables.
+BACKEND_URL="${NEXT_PUBLIC_BACKEND_URL:-http://localhost:8787}"
+APP_URL="${NEXT_PUBLIC_APP_URL:-http://localhost:3000}"
 
-/app/scripts/replace-placeholder.sh "http://REPLACE-BACKEND-URL.com" "$NEXT_PUBLIC_BACKEND_URL"
-/app/scripts/replace-placeholder.sh "http://REPLACE-APP-URL.com" "$NEXT_PUBLIC_APP_URL"
+/app/scripts/replace-placeholder.sh "http://REPLACE-BACKEND-URL.com" "$BACKEND_URL"
+/app/scripts/replace-placeholder.sh "http://REPLACE-APP-URL.com" "$APP_URL"
 
-exec bun /app/apps/mail/server.js
+WRANGLER_JSONC=/app/apps/mail/wrangler.jsonc
+sed -i "s|http://localhost:8787|${BACKEND_URL}|g" "$WRANGLER_JSONC"
+sed -i "s|https://localhost:8787|${BACKEND_URL}|g" "$WRANGLER_JSONC"
+sed -i "s|http://localhost:3000|${APP_URL}|g" "$WRANGLER_JSONC"
+sed -i "s|https://localhost:3000|${APP_URL}|g" "$WRANGLER_JSONC"
+
+cd /app/apps/mail
+exec wrangler dev \
+  --env local \
+  --port 3000 \
+  --host 0.0.0.0 \
+  --ip 0.0.0.0 \
+  --show-interactive-dev-session=false
