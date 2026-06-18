@@ -361,6 +361,11 @@ const createAuthConfig = () => {
       'https://staging.0.email',
       'https://0.email',
       'http://localhost:3000',
+      ...(env.VITE_PUBLIC_APP_URL ? [env.VITE_PUBLIC_APP_URL] : []),
+      ...(env.VITE_PUBLIC_BACKEND_URL ? [env.VITE_PUBLIC_BACKEND_URL] : []),
+      ...(env.BETTER_AUTH_TRUSTED_ORIGINS
+        ? env.BETTER_AUTH_TRUSTED_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
+        : []),
     ],
     session: {
       cookieCache: {
