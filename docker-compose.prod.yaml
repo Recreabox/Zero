@@ -119,6 +119,7 @@ services:
       - traefik.http.routers.api-mail-zero.tls.certresolver=letsencrypt
       - traefik.http.routers.api-mail-zero.service=api-mail-zero
       - traefik.http.services.api-mail-zero.loadbalancer.server.port=8787
+      - traefik.docker.network=f08skcc0cwgc0s00kccoo0ow
     healthcheck:
       test: ['CMD', 'wget', '--spider', '--quiet', 'http://127.0.0.1:8787']
       interval: 30s
