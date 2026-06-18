@@ -43,8 +43,23 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    ports:
-      - 3000:3000
+    expose:
+      - '3000'
+    labels:
+      - traefik.enable=true
+      - traefik.http.middlewares.gzip.compress=true
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+      - traefik.http.routers.mail-zero-http.entrypoints=http
+      - traefik.http.routers.mail-zero-http.middlewares=redirect-to-https
+      - traefik.http.routers.mail-zero-http.rule=Host(`mail-zero.recreabox.com`)
+      - traefik.http.routers.mail-zero-http.service=mail-zero
+      - traefik.http.routers.mail-zero.entrypoints=https
+      - traefik.http.routers.mail-zero.middlewares=gzip
+      - traefik.http.routers.mail-zero.rule=Host(`mail-zero.recreabox.com`)
+      - traefik.http.routers.mail-zero.tls=true
+      - traefik.http.routers.mail-zero.tls.certresolver=letsencrypt
+      - traefik.http.routers.mail-zero.service=mail-zero
+      - traefik.http.services.mail-zero.loadbalancer.server.port=3000
 
   zero-server:
     build:
@@ -78,8 +93,23 @@ services:
         condition: service_healthy
       upstash-proxy:
         condition: service_healthy
-    ports:
-      - 8787:8787
+    expose:
+      - '8787'
+    labels:
+      - traefik.enable=true
+      - traefik.http.middlewares.gzip.compress=true
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+      - traefik.http.routers.api-mail-zero-http.entrypoints=http
+      - traefik.http.routers.api-mail-zero-http.middlewares=redirect-to-https
+      - traefik.http.routers.api-mail-zero-http.rule=Host(`api-mail-zero.recreabox.com`)
+      - traefik.http.routers.api-mail-zero-http.service=api-mail-zero
+      - traefik.http.routers.api-mail-zero.entrypoints=https
+      - traefik.http.routers.api-mail-zero.middlewares=gzip
+      - traefik.http.routers.api-mail-zero.rule=Host(`api-mail-zero.recreabox.com`)
+      - traefik.http.routers.api-mail-zero.tls=true
+      - traefik.http.routers.api-mail-zero.tls.certresolver=letsencrypt
+      - traefik.http.routers.api-mail-zero.service=api-mail-zero
+      - traefik.http.services.api-mail-zero.loadbalancer.server.port=8787
 
   migrations:
     build:
