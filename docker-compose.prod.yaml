@@ -87,10 +87,8 @@ services:
       AUTUMN_SECRET_KEY: ${AUTUMN_SECRET_KEY}
       DISABLE_CALLS: 'true'
       NODE_ENV: production
-    command:
-      - sh
-      - '-c'
-      - "ulimit -n 65536 2>/dev/null || true && sed -i 's|@localhost:5432|@db:5432|g' /app/apps/server/wrangler.jsonc && sed -i 's|http://localhost:3000|https://mail-zero.recreabox.com|g' /app/apps/server/wrangler.jsonc && sed -i 's|http://localhost:8787|https://api-mail-zero.recreabox.com|g' /app/apps/server/wrangler.jsonc && cd /app/apps/server && exec wrangler dev --env local --port 8787 --host 0.0.0.0 --ip 0.0.0.0 --show-interactive-dev-session=false"
+      WRANGLER_SEND_METRICS: 'false'
+    command: ['/app/scripts/docker/server-entrypoint.sh']
     ulimits:
       nofile:
         soft: 65536
@@ -121,6 +119,12 @@ services:
       - traefik.http.routers.api-mail-zero.tls.certresolver=letsencrypt
       - traefik.http.routers.api-mail-zero.service=api-mail-zero
       - traefik.http.services.api-mail-zero.loadbalancer.server.port=8787
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '--quiet', 'http://127.0.0.1:8787']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   migrations:
     build:
