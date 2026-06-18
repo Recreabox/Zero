@@ -88,6 +88,7 @@ services:
       DISABLE_CALLS: 'true'
       NODE_ENV: production
       WRANGLER_SEND_METRICS: 'false'
+      CHOKIDAR_USEPOLLING: 'true'
     command: ['/app/scripts/docker/server-entrypoint.sh']
     ulimits:
       nofile:
@@ -121,7 +122,7 @@ services:
       - traefik.http.services.api-mail-zero.loadbalancer.server.port=8787
       - traefik.docker.network=f08skcc0cwgc0s00kccoo0ow
     healthcheck:
-      test: ['CMD', 'wget', '--spider', '--quiet', 'http://127.0.0.1:8787']
+      test: ['CMD', 'wget', '--spider', '--quiet', 'http://127.0.0.1:8787/health']
       interval: 30s
       timeout: 5s
       retries: 5

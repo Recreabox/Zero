@@ -16,10 +16,12 @@ sed -i "s|https://localhost:8787|${API_URL}|g" "$WRANGLER_JSONC"
 sed -i "s|\"COOKIE_DOMAIN\": \"localhost\"|\"COOKIE_DOMAIN\": \"${COOKIE_DOMAIN:-mail-zero.recreabox.com}\"|g" "$WRANGLER_JSONC"
 
 cd /app/apps/server
-echo "zero-server: starting wrangler on :8787"
+echo "zero-server: starting wrangler on :8787 (local-only)"
 exec wrangler dev \
+  --local \
   --env local \
   --port 8787 \
   --host 0.0.0.0 \
   --ip 0.0.0.0 \
-  --show-interactive-dev-session=false
+  --show-interactive-dev-session=false \
+  --persist-to /tmp/wrangler-state
